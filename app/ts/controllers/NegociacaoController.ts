@@ -1,6 +1,9 @@
 import { NegociacoesView, MensagemView } from '../views/index';
 import { Negociacao, Negociacoes, NegociacaoParcial } from '../models/index';
-import { domInject } from '../helpers/decorators/index';
+import { domInject, throttle } from '../helpers/decorators/index';
+import { NegociacaoService, ResponseHandler } from '../services/index';
+
+let timer = 0;
 
 export class NegociacaoController {
 
@@ -16,7 +19,8 @@ export class NegociacaoController {
     private _negociacoes = new Negociacoes();
     private _negociacoesView = new NegociacoesView('#negociacoesView', true);
     private _mensagemView = new MensagemView('#mensagemView', true);
-    
+    private _service = new NegociacaoService();
+
     constructor() {
         this._negociacoesView.update(this._negociacoes);
     }
@@ -27,14 +31,14 @@ export class NegociacaoController {
 
         let data = new Date(this._inputData.val().replace(/-/g, ','));
 
-        if(!this.diaUtil(data)) {
+        if (!this.diaUtil(data)) {
 
             this._mensagemView.update('Somente negociações em dias úteis, por favor!');
-            return 
+            return
         }
 
         const negociacao = new Negociacao(
-            new Date(this._inputData.val().replace(/-/g, ',')), 
+            new Date(this._inputData.val().replace(/-/g, ',')),
             parseInt(this._inputQuantidade.val()),
             parseFloat(this._inputValor.val())
         );
@@ -50,27 +54,21 @@ export class NegociacaoController {
         return data.getDay() != DiaDaSemana.Sábado && data.getDay() != DiaDaSemana.Domingo;
     }
 
-    importadados() {
-        
-        function isOk(res: Response){
-            if(res.ok) {
-                return res;
-            } else {
-                throw new Error(res.statusText);
-            }
+    @throttle()
+    importaDados() {
+
+        const isOk: ResponseHandler = (res: Response) => {
+            if (res.ok) return res;
+            throw new Error(res.statusText);
         }
 
-
-        fetch('http://localhost:8080/dados')
-            .then(res => isOk(res))
-            .then(res => res.json())
-            .then((dados: NegociacaoParcial[]) => {
-                dados
-                    .map(dado => new Negociacao(new Date(), dado.vezes, dado.montante))
-                    .forEach(negociacao => this._negociacoes.adiciona(negociacao))
+        this._service
+            .obterNegociacoes(isOk)
+            .then(negociacoes => {
+                negociacoes.forEach(negociacao =>
+                    this._negociacoes.adiciona(negociacao));
                 this._negociacoesView.update(this._negociacoes);
-            })
-            .catch(err => console.log(err.message));
+            });
     }
 }
 
