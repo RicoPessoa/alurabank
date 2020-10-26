@@ -1,7 +1,7 @@
 import { NegociacoesView, MensagemView } from '../views/index';
 import { Negociacao, Negociacoes, NegociacaoParcial } from '../models/index';
 import { domInject, throttle } from '../helpers/decorators/index';
-import { NegociacaoService, ResponseHandler } from '../services/index';
+import { NegociacaoService, HandlerFunction } from '../services/index';
 
 let timer = 0;
 
@@ -57,7 +57,7 @@ export class NegociacaoController {
     @throttle()
     importaDados() {
 
-        const isOk: ResponseHandler = (res: Response) => {
+        const isOk: HandlerFunction = (res: Response) => {
             if (res.ok) return res;
             throw new Error(res.statusText);
         }
